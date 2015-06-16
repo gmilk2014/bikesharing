@@ -34,13 +34,13 @@ object trip_data {
     val start_ticks = start_file.map(line => {
                          val record = line.split(",").map(_.trim)
                         (record(0).toInt,
-                         format.parse(convert_to_hourbucket(record(1)))
+                         format.parse(convert_to_hourbucket(record(1))))
                          })
 
     val end_ticks = end_file.map(line => {
                          val record = line.split(",").map(_.trim)
                         (record(0).toInt,
-                         format.parse(convert_to_hourbucket(record(1)))
+                         format.parse(convert_to_hourbucket(record(1))))
                          })
 
 // count for each hour bucket
