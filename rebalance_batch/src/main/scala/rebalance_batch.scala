@@ -18,35 +18,45 @@ object trip_data {
 
     val end_folder_name = "hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/masterdata/end"
 
-    // function to convert a timestamp to a 1 hour time slot
+// function to convert a timestamp to a 1 hour time slot
     def convert_to_hourbucket(timestamp: String): String = {
-        
+
         val record = timestamp.split(" |:")
-        record(0) + " " + record(1) + " PST"
+        record(0) + " " + record(1)
     }
 
     // read in the data from HDFS
     val start_file = sc.textFile(start_folder_name)
     val end_file = sc.textFile(end_folder_name)
 
-    // map each record into a tuple consisting of
-    // (Trip ID, Duration, Start Date, Start Station, Start Terminal,
-    // End Date,End Station,End Terminal, Bike #, Subscription Type, Zip Code)
-    val format = new java.text.SimpleDateFormat("MM/dd/yyyy HH zzz")
-    val ticks = file.map(line => {
+    // map each record into a tuple consisting of ()
+    val format = new java.text.SimpleDateFormat("MM/dd/yyyy HH")
+    val start_ticks = start_file.map(line => {
                          val record = line.split(",").map(_.trim)
                         (record(0).toInt,
                          format.parse(convert_to_hourbucket(record(1)))
-                         }).persist
+                         })
 
-    // count for each hour bucket
-    val hour_bucket_count = ticks.map(record => (record._1, 1))
-                                 .reduceByKey(_+_).sortByKey()
+    val end_ticks = end_file.map(line => {
+                         val record = line.split(",").map(_.trim)
+                        (record(0).toInt,
+                         format.parse(convert_to_hourbucket(record(1)))
+                         })
+
+// count for each hour bucket
+    val start_hour_bucket_count = start_ticks.map(record => (record, 1))
+
+    val end_hour_bucket_count = end_ticks.map(record => (record, -1))
+
+    val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
+                                 .reduceByKey(_+_).sortByKey().map(
+                                  record => (record._1._1, record._1._2, record._2))
 
     // save the data back into HDFS
     // hour_bucket_count.saveAsTextFile("hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/output/trip_data_output_scala")
 
     // save in Cassandra
-    hour_bucket_count_id.saveToCassandra("bikeshare", "test_by_hour_batch") 
+    hour_bucket_count.saveToCassandra("bikeshare", "rebalance_batch")
   }
 }
+
