@@ -14,7 +14,7 @@ object trip_data {
     val sc = new SparkContext(conf)
 
     // folder on HDFS to pull the data from
-    val folder_name = "hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/masterdata/trip/"
+    val folder_name = "hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/test"
 
     // function to convert a timestamp to a 1 hour time slot
     def convert_to_hourbucket(timestamp: String): String = {
