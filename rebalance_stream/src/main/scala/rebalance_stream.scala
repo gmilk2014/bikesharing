@@ -6,6 +6,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.sql._
+import org.apache.spark.HashPartitioner
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.streaming._
 import com.datastax.driver.core.utils._
@@ -40,8 +41,21 @@ object RebalanceStreaming {
         record(0) + " " + record(1)
     }
 
-    // map each record into a tuple consisting of ()
+    val updateFunc = (values: Seq[Int], state: Option[Int]) => {
+      val currentCount = values.sum
+
+      val previousCount = state.getOrElse(0)
+
+      Some(currentCount + previousCount)
+    }
+
+    val newUpdateFunction = (iterator: Iterator[((Int, java.util.Date), Seq[Int], Option[Int])]) => {
+      iterator.flatMap(t => updateFunc(t._2, t._3).map(s => (t._1, s)))
+    }
+
+    // map each record into a tuple consisting of (stationID, timestamp)
     val format = new java.text.SimpleDateFormat("MM/dd/yyyy HH")
+
     val start_ticks = start_messages.map(line => {
                          val record = line._2.split(",").map(_.trim)
                         (record(0).toInt,
@@ -59,9 +73,15 @@ object RebalanceStreaming {
 
     val end_hour_bucket_count = end_ticks.map(record => (record, -1))
 
+    //val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
+    //                             .reduceByKey(_+_).map(
+    //                              record => (record._1._1, record._1._2, record._2)) 
+
     val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
-                                 .reduceByKey(_+_).map(
-                                  record => (record._1._1, record._1._2, record._2)) 
+                            .updateStateByKey[Int](newUpdateFunction,
+      new HashPartitioner (ssc.sparkContext.defaultParallelism), true)
+      .map(record => (record._1._1, record._1._2, record._2))
+
     // save in Cassandra
     hour_bucket_count.saveToCassandra("bikeshare", "rebalance_stream")
     // Start the computation
