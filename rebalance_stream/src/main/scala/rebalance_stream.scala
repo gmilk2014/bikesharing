@@ -13,59 +13,60 @@ import scala.collection.JavaConversions._
 import java.text.DateFormat
 import java.text.DateFormat._
 
-object TripStreaming {
+object RebalanceStreaming {
   def main(args: Array[String]) {
 
-    // Create context with 2 second batch interval
+    // Create context with 1 second batch interval
     val conf = new SparkConf().setAppName("trip_streaming").set("spark.cassandra.connection.host", "52.26.135.59")
-    val ssc = new StreamingContext(conf, Seconds(2))
+    val ssc = new StreamingContext(conf, Seconds(1))
        
-    // ssc.checkpoint("/user/PuppyPlaydate/spark_streaming")
+    ssc.checkpoint("hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/checkpoint")
 
     val brokers = "ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9092"
-    val topics = "trip_data"
-    val topicsSet = topics.split(",").toSet
+    val topics1 = "trip_start_data"
+    val topicsSet1 = topics1.split(",").toSet
+    val topics2 = "trip_end_data"
+    val topicsSet2 = topics2.split(",").toSet
 
     // Create direct kafka stream with brokers and topics
     val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
-    val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topicsSet)
+    val start_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topicsSet1)
+    val end_messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topicsSet2)
+    
+    // function to convert a timestamp to a 1 hour time slot
+    def convert_to_hourbucket(timestamp: String): String = {
 
-    // Get the lines and show results
-    messages.foreachRDD { rdd =>
-        // Get the singleton instance of SQLContext
-        val sqlContext = SQLContextSingleton.getInstance(rdd.sparkContext)
-        import sqlContext.implicits._
-
-        val lines = rdd.map(_._2)
-        val ticksDF = lines.map( x => {
-                                  val tokens = x.split(";")
-                                  Tick(tokens(0), tokens(2).toDouble, tokens(3).toInt)}).toDF()
-        val ticks_per_source_DF = ticksDF.groupBy("source")
-                                .agg("price" -> "avg", "volume" -> "sum")
-                                .orderBy("source")
-
-        ticks_per_source_DF.show()
+        val record = timestamp.split(" |:")
+        record(0) + " " + record(1)
     }
 
+    // map each record into a tuple consisting of ()
+    val format = new java.text.SimpleDateFormat("MM/dd/yyyy HH")
+    val start_ticks = start_messages.map(line => {
+                         val record = line._2.split(",").map(_.trim)
+                        (record(0).toInt,
+                         format.parse(convert_to_hourbucket(record(1))))
+                         })
+
+    val end_ticks = end_messages.map(line => {
+                         val record = line._2.split(",").map(_.trim)
+                        (record(0).toInt,
+                         format.parse(convert_to_hourbucket(record(1))))
+                         })
+
+    // count for each hour bucket
+    val start_hour_bucket_count = start_ticks.map(record => (record, 1))
+
+    val end_hour_bucket_count = end_ticks.map(record => (record, -1))
+
+    val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
+                                 .reduceByKey(_+_).map(
+                                  record => (record._1._1, record._1._2, record._2)) 
+    // save in Cassandra
+    hour_bucket_count.saveToCassandra("bikeshare", "rebalance_stream")
     // Start the computation
     ssc.start()
     ssc.awaitTermination()
   }
 
 }
-
-case class Row(rid: String, date_time: java.sql.Timestamp, count: Int)
-
-/** Lazily instantiated singleton instance of SQLContext */
-object SQLContextSingleton {
-  @transient private var instance: SQLContext = null
-
-  // Instantiate SQLContext on demand
-  def getInstance(sparkContext: SparkContext): SQLContext = synchronized {
-    if (instance == null) {
-      instance = new SQLContext(sparkContext)
-    }
-    instance
-  }
-}
-

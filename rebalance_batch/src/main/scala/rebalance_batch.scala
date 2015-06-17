@@ -43,7 +43,7 @@ object trip_data {
                          format.parse(convert_to_hourbucket(record(1))))
                          })
 
-// count for each hour bucket
+    // count for each hour bucket
     val start_hour_bucket_count = start_ticks.map(record => (record, 1))
 
     val end_hour_bucket_count = end_ticks.map(record => (record, -1))
