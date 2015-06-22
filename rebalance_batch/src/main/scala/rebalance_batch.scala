@@ -29,7 +29,7 @@ object trip_data {
     val start_file = sc.textFile(start_folder_name)
     val end_file = sc.textFile(end_folder_name)
 
-    // map each record into a tuple consisting of ()
+    // map each record into a tuple consisting of (id, timestamp)
     val format = new java.text.SimpleDateFormat("MM/dd/yyyy HH")
     val start_ticks = start_file.map(line => {
                          val record = line.split(",").map(_.trim)
@@ -49,14 +49,17 @@ object trip_data {
     val end_hour_bucket_count = end_ticks.map(record => (record, -1))
 
     val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
-                                 .reduceByKey(_+_).sortByKey().map(
+                                 .reduceByKey(_+_).map(
                                   record => (record._1._1, record._1._2, record._2))
+
+    val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_)
 
     // save the data back into HDFS
     // hour_bucket_count.saveAsTextFile("hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/output/trip_data_output_scala")
 
     // save in Cassandra
     hour_bucket_count.saveToCassandra("bikeshare", "rebalance_batch")
+    bike_count_by_station.saveToCassandra("bikeshare", "bikecount_batch")
   }
 }
 
