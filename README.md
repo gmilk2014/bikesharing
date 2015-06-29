@@ -104,8 +104,3 @@ Data in JSON format can be displayed in the browser by calling the following fro
 - /location
   - retrive locations for all stations
 
-## Startup Protocol
-1. Kafka server
-2. Spark Streaming
-3. HDFS Kafka consumer
-4. Kafka message producer
