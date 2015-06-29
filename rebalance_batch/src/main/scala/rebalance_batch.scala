@@ -52,7 +52,7 @@ object trip_data {
                                  .reduceByKey(_+_).map(
                                   record => (record._1._1, record._1._2, record._2))
 
-    val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_)
+    val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_).map(record => (((record._1 - 1) / 100 + 1), record._1, record._2))
 
     // save the data back into HDFS
     // hour_bucket_count.saveAsTextFile("hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/output/trip_data_output_scala")

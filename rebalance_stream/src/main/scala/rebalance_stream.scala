@@ -82,8 +82,12 @@ object RebalanceStreaming {
       new HashPartitioner (ssc.sparkContext.defaultParallelism), true)
       .map(record => (record._1._1, record._1._2, record._2))
 
+    val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_).map(record => (((record._1 - 1) / 100 + 1), record._1, record._2))
+
+
     // save in Cassandra
     hour_bucket_count.saveToCassandra("bikeshare", "rebalance_stream")
+    bike_count_by_station.saveToCassandra("bikeshare", "bikecount_stream")
     // Start the computation
     ssc.start()
     ssc.awaitTermination()
