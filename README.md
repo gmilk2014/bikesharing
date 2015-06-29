@@ -14,37 +14,22 @@ BikeAlert is a tool to help the bike sharing program owners track the bike stati
 
 ![Map Demo] (images/map.jpg)
 
-# Puppy Playdate Approach
-Puppy Playdate uses synthetically generated JSON messages which are processed in the batch and real-time component for historical monthly and daily message counts along with continual map and message updates.
+# BikeAlert Approach
+Puppy Playdate uses synthetically generated trip logs which are processed in the batch and real-time component for historical hourly bike counts along with continual map updates.
 
 ![pipeline Demo] (images/pipeline.jpg)
 
 ## Data Synethesis
-Current list of counties in the United States were extracted from http://www.bls.gov/lau/laucntycur14.txt. Area Title contained both the county name and state. The Civilian Labor Force field was used to scale the frequency messages would be sent to each county where higher labor force related to a higher frequency of messages to be sent. Time based trends were also implemented by altering the probability of a message being sent a specific year, month and day of week. Synthesized trends are as follows:
-- Increasing growth in messages by each year 2012, 2013, 2014
-- More messages sent in April and October with October being the peak activity
-- Weekly patterns with peak activity on Saturdays
-
-JSON message fields:
-- timestamp [year month day hour minute second]: time when message was posted
-- county [county, state]: location where message was posted
-- creatorID: Integer representing the creator of the message thread
-- senderID: Integer representing the sender of the current message
-- rank: Integer representing the order of the message in the thread with 0 being the first message
-- messageID: Integer representing a specific message thread
-- message: String containing the message
-
-~ 45 GB of historical data
-~ 1000 messages streaming per second
+The actual log data from Bay Area Bike Share have many fields including Trip ID,Duration,Start Date,Start Station,Start Terminal,End Date,End Station,End Terminal,Bike #,Subscription Type, and Zip Code. For my project, I only need start/end station ID and start/end Date, so I simply randomly generated a (stationID, timestamp) pair for start/end trip logs. StationID is between 1 to 1000 and timestamp is between 2011/6/17 to 2015/6/17.
 
 ## Data Ingestion
-JSON messages were produced and consumed by python scripts using the kafka-python package from https://github.com/mumrah/kafka-python.git. Messages were published to a single topic with Spark Streaming and HDFS acting as consumers. Messages were blocked into 20MB sizes into the main historical folder and cached folder on HDFS. The incremental batch job operates continually on the cached folder and removes processed files while leaving the historical folder immutable for a complete rebuild of the batch view.
+(stationID, timestamp) pairs were produced by python scripts using the kafka-python package from https://github.com/mumrah/kafka-python.git. Logs were published to two topics (start_data and end_data) with Spark Streaming as consumers. Historical data were pushed into HDFS from local machine mannually by command `$ hdfs dfs -copyFromLocal <historical_data> <hdfs master dataset directory>`. The historical data in HDFS were served as the source of the truth, so they were immutable and used in batch processing to back up the speed layer.
 
 ## Batch Processing
 Two batch processes were performed for historical batch views:
 
-1. Count number of messages by county on a monthly granularity
-2. Count number of messages by county on a daily granularity
+1. Count number of bikes by station on a hourly granularity
+2. Count number of bikes by station up till all the available data
 
 Batch views were directly written into cassandra with the spark-cassandra connector
 
