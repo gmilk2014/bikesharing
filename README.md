@@ -12,9 +12,6 @@ BikeAlert is a tool to help the bike sharing program owners track the bike stati
 - Apache Cassandra
 - Flask with google maps API, Bootstrap and Ajax
 
-# What Puppy Playdate Provides
-Puppy Playdate permits users to dive into real-time and historical analytics on the activity of pet owners based on sent messages. The user has the ability to look at current activity on the US map and the latest messages in the messaging box. The interface also provides historical analytics on the number of messages sent within each US county on a monthly and daily basis. 
-
 ![Map Demo] (images/map.jpg)
 
 # Puppy Playdate Approach
