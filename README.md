@@ -34,25 +34,25 @@ Two batch processes were performed for historical batch views:
 Batch views were directly written into cassandra with the spark-cassandra connector
 
 sbt libarary dependencies:
-- "com.datastax.spark" %% "spark-cassandra-connector" % "1.2.0-alpha1"
-- "org.apache.spark" %% "spark-core" % "1.2.0" % "provided"
+- "com.datastax.spark" %% "spark-cassandra-connector" % "1.3.0-M1"
+- "org.apache.spark" %% "spark-core" % "1.3.0" % "provided"
 
-A full batch process was made in the case of needing to rebuild the entire batch view. Typically the incremental batch process is run daily from the cached folder on HDFS. 
+A full batch process was made to rebuild the entire batch view.
 
 ## Real-time Processing
-Two stream processes were performed for real-time views:
+Streaming process was performed for real-time views:
 
-1. Count number of messages by county on a 5 second interval
-2. Retrieve the 5 most recent messages in a county
+1. Count number of bikes by station on a 5 second interval
 
 Messages streamed into Spark Streaming with the spark-kafka connector
 Real-time views were directly written into cassandra with the spark-cassandra connector
 
 sbt library dependencies:
-- "com.datastax.spark" %% "spark-cassandra-connector" % "1.2.0-alpha1"
-- "org.apache.spark" %% "spark-core" % "1.2.0" % "provided"
-- "org.apache.spark" % "spark-streaming_2.10" % "1.2.0" % "provided"
-- "org.apache.spark" % "spark-streaming-kafka_2.10" % "1.2.0"
+- "com.datastax.spark" %% "spark-cassandra-connector" % "1.3.0-M1"
+- "org.apache.spark" %% "spark-core" % "1.3.0" % "provided"
+- "org.apache.spark" %% "spark-sql" % "1.3.0" % "provided"
+- "org.apache.spark" % "spark-streaming_2.10" % "1.3.0" % "provided"
+- "org.apache.spark" % "spark-streaming-kafka_2.10" % "1.3.0"
   
 ## Cassandra Schema
 Tables:
