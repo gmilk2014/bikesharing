@@ -57,35 +57,52 @@ sbt library dependencies:
 ## Cassandra Schema
 Tables:
 
-1. by_county_rt: table populated by Spark Streaming (real-time) representing message count in the last 5 seconds
-2. by_county_msgs: table populated by Spark Streaming (real-time) containing recent messages organized by county and date
-3. by_county_month: table populated by Spark (batch) containing the historical message counts on a monthly basis
-4. by_county_day: table populated by Spark (batch) containing the historical message counts on a daily basis
+1. location: table that contains the area code, latitude and longitude for each station
+2. rebalance_batch: table populated by Spark (batch) containing the historical bike counts on hourly basis
+3. bikecount_batch: table populated by Spark (batch) containing the historical bike counts up till the time batch process start
+4. bikecount_stream: table populated by Spark Streaming (real-time) containing most recent bike count by station
 ```
-CREATE TABLE by_county_rt (state varchar, county varchar, count int, PRIMARY KEY ( (state, county) ) );
-CREATE TABLE by_county_msgs (state varchar, county varchar, date int, time int, message varchar, PRIMARY KEY ( (state, county), date, time ) );
-CREATE TABLE by_county_month (state varchar, county varchar, date int, count, int, PRIMARY KEY ( (state, county), date ) );
-CREATE TABLE by_county_day (state varchar, county varchar, date int, count, int, PRIMARY KEY ( (state, county), date ) );
+CREATE KEYSPACE bikeshare WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '2'};
+
+CREATE TABLE bikeshare.location (
+    area int,
+    id int,
+    lat double,
+    lon double,
+    PRIMARY KEY (area, id)
+)
+
+CREATE TABLE bikeshare.rebalance_batch (
+    stationid int,
+    date_hour timestamp,
+    "count" int,
+    PRIMARY KEY (stationid, date_hour)
+)
+
+CREATE TABLE bikeshare.bikecount_batch (
+    area int,
+    stationid int,
+    "count" int,
+    PRIMARY KEY (area, stationid)
+)
+
+CREATE TABLE bikeshare.bikecount_stream (
+    area int,
+    stationid int,
+    "count" int,
+    PRIMARY KEY (area, stationid)
+)
 ```
-Date/Time format: 
-- by_county_msgs: 
-  - yyyymmdd (ex: 20150209)
-  - HHMMSS (ex: 120539)
-- by_county_month: yyyymm (ex: 201502)
-- by_county_day: yyyymmdd (ex: 20150209)
 
 ## API calls
 Data in JSON format can be displayed in the browser by calling the following from the root index puppyplaydate.website:
 
-- /update_map/
-  - retrieve number of messages in the last 5 seconds for all counties in the US
-- /new_messages/county_code/
-  - retrieve 5 most recent messages from a county
-  - county_code example: puppyplaydate.website/new_messages/us-ca-081/
-- /update_chart/interval/county_code/
-  - return a time series requested by the time interval and county_code
-  - interval options: month or day
-  - example: puppyplaydate.website/month/us-ca-081/
+- /bikecount/<stationid>
+  - retrieve the most recent number of bikes at the given station
+- /realtime
+  - retrive the most recent number of bikes at all stations
+- /location
+  - retrive locations for all stations
 
 ## Startup Protocol
 1. Kafka server
