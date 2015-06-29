@@ -17,12 +17,13 @@ import java.text.DateFormat._
 object RebalanceStreaming {
   def main(args: Array[String]) {
 
-    // Create context with 1 second batch interval
+    // Create context with 5 seconds batch interval
     val conf = new SparkConf().setAppName("trip_streaming").set("spark.cassandra.connection.host", "52.26.135.59")
-    val ssc = new StreamingContext(conf, Seconds(1))
+    val ssc = new StreamingContext(conf, Seconds(5))
        
     ssc.checkpoint("hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/checkpoint")
 
+    // setup broker ip and the topics to subscribe
     val brokers = "ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9092"
     val topics1 = "trip_start_data"
     val topicsSet1 = topics1.split(",").toSet
@@ -41,6 +42,7 @@ object RebalanceStreaming {
         record(0) + " " + record(1)
     }
 
+    // set up update function to be the sum of current count + previous count
     val updateFunc = (values: Seq[Int], state: Option[Int]) => {
       val currentCount = values.sum
 
@@ -73,10 +75,6 @@ object RebalanceStreaming {
 
     val end_hour_bucket_count = end_ticks.map(record => (record, -1))
 
-    //val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
-    //                             .reduceByKey(_+_).map(
-    //                              record => (record._1._1, record._1._2, record._2)) 
-
     val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
                             .updateStateByKey[Int](newUpdateFunction,
       new HashPartitioner (ssc.sparkContext.defaultParallelism), true)
@@ -84,10 +82,10 @@ object RebalanceStreaming {
 
     val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_).map(record => (((record._1 - 1) / 100 + 1), record._1, record._2))
 
-
     // save in Cassandra
     hour_bucket_count.saveToCassandra("bikeshare", "rebalance_stream")
     bike_count_by_station.saveToCassandra("bikeshare", "bikecount_stream")
+    
     // Start the computation
     ssc.start()
     ssc.awaitTermination()

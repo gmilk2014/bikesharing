@@ -18,7 +18,7 @@ object trip_data {
 
     val end_folder_name = "hdfs://ec2-52-26-135-59.us-west-2.compute.amazonaws.com:9000/masterdata/end"
 
-// function to convert a timestamp to a 1 hour time slot
+    // function to convert a timestamp to a 1 hour time slot
     def convert_to_hourbucket(timestamp: String): String = {
 
         val record = timestamp.split(" |:")
@@ -43,15 +43,18 @@ object trip_data {
                          format.parse(convert_to_hourbucket(record(1))))
                          })
 
-    // count for each hour bucket
+    // emit (key, 1)
     val start_hour_bucket_count = start_ticks.map(record => (record, 1))
-
+    
+    // emit (key, -1)
     val end_hour_bucket_count = end_ticks.map(record => (record, -1))
-
+    
+    // merge and count for each hour bucket
     val hour_bucket_count = start_hour_bucket_count.union(end_hour_bucket_count)
                                  .reduceByKey(_+_).map(
                                   record => (record._1._1, record._1._2, record._2))
 
+    // futher merge to get the current view of the bike count at each station
     val bike_count_by_station = hour_bucket_count.map(record => (record._1, record._3)).reduceByKey(_+_).map(record => (((record._1 - 1) / 100 + 1), record._1, record._2))
 
     // save the data back into HDFS
