@@ -15,7 +15,7 @@ BikeAlert is a tool to help the bike sharing program owners track the bike stati
 ![Map Demo] (images/map.jpg)
 
 # BikeAlert Approach
-Puppy Playdate uses synthetically generated trip logs which are processed in the batch and real-time component for historical hourly bike counts along with continual map updates.
+BikeAlert uses synthetically generated trip logs which are processed in the batch and real-time component for historical hourly bike counts along with continual map updates.
 
 ![pipeline Demo] (images/pipeline.jpg)
 
